@@ -29,6 +29,11 @@ cc_library_shared {
     header_libs: [
         "media_plugin_headers",
     ],
+    product_variables: {
+       uses_non_treble_camera: {
+	cflags: ["-DTARGET_USES_NON_TREBLE_CAMERA"],
+       }
+    },
     export_include_dirs: ["."]
 }
 

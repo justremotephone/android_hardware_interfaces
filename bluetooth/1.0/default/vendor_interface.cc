@@ -89,6 +89,7 @@ uint8_t transmit_cb(uint16_t opcode, void* buffer, tINT_CMD_CBACK callback) {
   internal_command.opcode = opcode;
   uint8_t type = HCI_PACKET_TYPE_COMMAND;
   HC_BT_HDR* bt_hdr = reinterpret_cast<HC_BT_HDR*>(buffer);
+  VendorInterface::get()->SnoopVendorSend(bt_hdr->data, bt_hdr->len);
   VendorInterface::get()->Send(type, bt_hdr->data, bt_hdr->len);
   delete[] reinterpret_cast<uint8_t*>(buffer);
   return true;
@@ -164,11 +165,19 @@ class FirmwareStartupTimer {
 bool VendorInterface::Initialize(
     InitializeCompleteCallback initialize_complete_cb,
     PacketReadCallback event_cb, PacketReadCallback acl_cb,
-    PacketReadCallback sco_cb) {
+    PacketReadCallback sco_cb, PacketSnoopCallback snoop_cb) {
   assert(!g_vendor_interface);
   g_vendor_interface = new VendorInterface();
   return g_vendor_interface->Open(initialize_complete_cb, event_cb, acl_cb,
-                                  sco_cb);
+                                  sco_cb, snoop_cb);
+}
+
+void VendorInterface::SnoopVendorSend(const uint8_t *data, size_t length)
+{
+    snoop_packet_.resize(length);
+    memcpy(snoop_packet_.data(), data, length);
+    
+    snoop_cb_(snoop_packet_, false);
 }
 
 void VendorInterface::Shutdown() {
@@ -183,9 +192,11 @@ VendorInterface* VendorInterface::get() { return g_vendor_interface; }
 bool VendorInterface::Open(InitializeCompleteCallback initialize_complete_cb,
                            PacketReadCallback event_cb,
                            PacketReadCallback acl_cb,
-                           PacketReadCallback sco_cb) {
+                           PacketReadCallback sco_cb,
+                           PacketSnoopCallback snoop_cb) {
   initialize_complete_cb_ = initialize_complete_cb;
-
+  snoop_cb_ = snoop_cb;
+  
   // Initialize vendor interface
 
   lib_handle_ = dlopen(VENDOR_LIBRARY_NAME, RTLD_NOW);
@@ -358,6 +369,8 @@ void VendorInterface::HandleIncomingEvent(const hidl_vec<uint8_t>& hci_packet) {
       internal_command_event_match(hci_packet)) {
     HC_BT_HDR* bt_hdr = WrapPacketAndCopy(HCI_PACKET_TYPE_EVENT, hci_packet);
 
+    snoop_cb_(hci_packet, true);
+    
     // The callbacks can send new commands, so don't zero after calling.
     tINT_CMD_CBACK saved_cb = internal_command.cb;
     internal_command.cb = nullptr;

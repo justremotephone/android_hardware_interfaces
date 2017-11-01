@@ -31,6 +31,7 @@ namespace implementation {
 using ::android::hardware::hidl_vec;
 using InitializeCompleteCallback = std::function<void(bool success)>;
 using PacketReadCallback = std::function<void(const hidl_vec<uint8_t>&)>;
+using PacketSnoopCallback = std::function<void(const hidl_vec<uint8_t>&, bool is_received)>;
 
 class FirmwareStartupTimer;
 
@@ -38,11 +39,12 @@ class VendorInterface {
  public:
   static bool Initialize(InitializeCompleteCallback initialize_complete_cb,
                          PacketReadCallback event_cb, PacketReadCallback acl_cb,
-                         PacketReadCallback sco_cb);
+                         PacketReadCallback sco_cb, PacketSnoopCallback snoop_cb);
   static void Shutdown();
   static VendorInterface *get();
 
   size_t Send(uint8_t type, const uint8_t *data, size_t length);
+  void SnoopVendorSend(const uint8_t *data, size_t length);
 
   void OnFirmwareConfigured(uint8_t result);
 
@@ -51,7 +53,7 @@ class VendorInterface {
 
   bool Open(InitializeCompleteCallback initialize_complete_cb,
             PacketReadCallback event_cb, PacketReadCallback acl_cb,
-            PacketReadCallback sco_cb);
+            PacketReadCallback sco_cb, PacketSnoopCallback snoop_cb);
   void Close();
 
   void OnTimeout();
@@ -64,8 +66,11 @@ class VendorInterface {
   InitializeCompleteCallback initialize_complete_cb_;
   hci::HciProtocol* hci_;
 
+  hidl_vec<uint8_t> snoop_packet_;
+  
   PacketReadCallback event_cb_;
-
+  PacketSnoopCallback snoop_cb_;
+  
   FirmwareStartupTimer *firmware_startup_timer_;
 };
 

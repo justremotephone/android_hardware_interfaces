@@ -89,6 +89,12 @@ Return<void> BluetoothHci::initialize(
         if (!hidl_status.isOk()) {
           ALOGE("VendorInterface -> Unable to call scoDataReceived()");
         }
+      },
+      [cb](const hidl_vec<uint8_t>& packet, bool is_received) {
+        auto hidl_status = cb->snoopVendorPacket(packet, is_received);
+        if (!hidl_status.isOk()) {
+          ALOGE("VendorInterface -> Unable to call snoopVendorPacket()");
+        }
       });
   if (!rc) {
     auto hidl_status = cb->initializationComplete(Status::INITIALIZATION_ERROR);

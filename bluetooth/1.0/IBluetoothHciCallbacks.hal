@@ -42,4 +42,6 @@ interface IBluetoothHciCallbacks {
      * @param data the SCO HCI packet to be passed to the host stack
      */
     scoDataReceived(HciPacket data);
+    
+    snoopVendorPacket(HciPacket data, bool is_received);
 };
